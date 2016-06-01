@@ -29,6 +29,9 @@
       model.db_collection.update(data)
     }
   };
+  Backbone.Firebase._throwError = function(message) {
+    throw new Error(message);
+  };
 
   Backbone.Firebase.Collection = Backbone.Collection.extend({
     constructor: function (model, options) {
@@ -37,10 +40,7 @@
       var BaseModel = self.model;
       //save reference to old add: normal add will be with {silent:true} as the add event will be send by "child_added"
       this._add=this.add;
-      this.db_ref=firebase.database().ref().child(this.url)
-      this.db_url=function(path){
-        return firebase.database().ref(self.url+"/"+path);
-      }
+      this.db_ref=firebase.database().ref().child(this._url())
       this.db_ref.on('child_added', function(data) {
         model=self.get(data.key)
         if(!model) self._add(new BaseModel(_.extend({id:data.key}, data.val())));
@@ -65,6 +65,17 @@
         newItem.sync = Backbone.Firebase.sync;
         return newItem;
       };
+    },
+    //returns URL, both if the URL is a function or string
+    _url:function(){
+      switch (typeof(this.url)) {
+        case 'string':
+          return this.url
+        case 'function':
+          return this.url();
+        default:
+          Backbone.Firebase._throwError('Invalid type passed to url property');
+      }
     },
     //Remove collection.add(model) from create method, as the model will be already added on Firebase child_added
     //Using prepareModel to setup both Model or {} attributes
